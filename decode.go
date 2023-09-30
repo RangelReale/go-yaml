@@ -30,6 +30,7 @@ type Decoder struct {
 	anchorNodeMap        map[string]ast.Node
 	anchorValueMap       map[string]reflect.Value
 	customUnmarshalerMap map[reflect.Type]func(interface{}, []byte) error
+	customTagParser      CustomTagParser
 	toCommentMap         CommentMap
 	opts                 []DecodeOption
 	referenceFiles       []string
@@ -296,6 +297,11 @@ func (d *Decoder) nodeToValue(node ast.Node) interface{} {
 			return d.nodeToValue(n.Value)
 		case token.MappingTag:
 			return d.nodeToValue(n.Value)
+		default:
+			if d.customTagParser != nil {
+				v, _ := d.customTagParser(n, d.nodeToValue(n.Value))
+				return v
+			}
 		}
 	case *ast.AnchorNode:
 		anchorName := n.Name.GetToken().Value

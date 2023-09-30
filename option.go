@@ -7,8 +7,17 @@ import (
 	"github.com/goccy/go-yaml/ast"
 )
 
+type CustomTagParser func(tag *ast.TagNode, value any) (any, error)
+
 // DecodeOption functional option type for Decoder
 type DecodeOption func(d *Decoder) error
+
+func WithCustomTagParser(tagParser CustomTagParser) DecodeOption {
+	return func(d *Decoder) error {
+		d.customTagParser = tagParser
+		return nil
+	}
+}
 
 // ReferenceReaders pass to Decoder that reference to anchor defined by passed readers
 func ReferenceReaders(readers ...io.Reader) DecodeOption {

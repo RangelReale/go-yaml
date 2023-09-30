@@ -1540,7 +1540,7 @@ c: true
 		t.Fatalf("expected error")
 	}
 
-	//TODO: properly check if errors are colored/have source
+	// TODO: properly check if errors are colored/have source
 	t.Logf("%s", err)
 	t.Logf("%s", yaml.FormatError(err, true, false))
 	t.Logf("%s", yaml.FormatError(err, false, true))
@@ -1567,7 +1567,7 @@ a:
 		t.Fatal(`err.Error() should match yaml.FormatError(err, false, true)`)
 	}
 
-	//TODO: properly check if errors are colored/have source
+	// TODO: properly check if errors are colored/have source
 	t.Logf("%s", err)
 	t.Logf("%s", yaml.FormatError(err, true, false))
 	t.Logf("%s", yaml.FormatError(err, false, true))
@@ -2888,5 +2888,43 @@ func TestSameNameInineStruct(t *testing.T) {
 	}
 	if fmt.Sprint(v.X.X) != "0.7" {
 		t.Fatalf("failed to decode")
+	}
+}
+
+func TestDecoder_CustomTags(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		value  any
+		err    error
+	}{
+		{
+			name:   "custom string type",
+			source: "v: !!mytag test",
+			value:  map[string]interface{}{"v": "test"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			buf := bytes.NewBufferString(test.source)
+			dec := yaml.NewDecoder(buf, yaml.WithCustomTagParser(func(tag *ast.TagNode, value any) (any, error) {
+				return "10", nil
+			}))
+			typ := reflect.ValueOf(test.value).Type()
+			value := reflect.New(typ)
+			if err := dec.Decode(value.Interface()); err != nil {
+				if err == io.EOF {
+					return
+				}
+				t.Fatalf("%s: %+v", test.source, err)
+			}
+
+			actual := fmt.Sprintf("%+v", value.Elem().Interface())
+			expect := fmt.Sprintf("%+v", test.value)
+			if actual != expect {
+				t.Fatalf("failed to test [%s], actual=[%s], expect=[%s]", test.source, actual, expect)
+			}
+		})
 	}
 }
