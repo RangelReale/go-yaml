@@ -2902,6 +2902,16 @@ type myTagMap struct {
 	Y string
 }
 
+type myTagRoot struct {
+	V myTagAll `yaml:"v"`
+}
+
+type myTagAll struct {
+	M  myTag       `yaml:"m"`
+	MS myTagStruct `yaml:"ms"`
+	MM myTagMap    `yaml:"mm"`
+}
+
 func TestDecoder_CustomTags(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -2941,6 +2951,34 @@ func TestDecoder_CustomTags(t *testing.T) {
 			value: map[string]interface{}{"v": myTagMap{1, "a"}},
 			customTagParser: func(tag *ast.TagNode, value any) (any, error) {
 				if tag.Start.Value == "!mytag" {
+					return myTagMap{
+						X: value.(map[string]any)["x"].(uint64),
+						Y: value.(map[string]any)["y"].(string),
+					}, nil
+				}
+				return value, nil
+			},
+		},
+		{
+			name: "custom tag to struct",
+			source: `v:
+  m: !mytag test1
+  ms: !mytagStruct test2
+  mm:
+    !mytagMap
+    x: 1
+    y: "a"`,
+			value: myTagRoot{myTagAll{
+				M:  myTag("test1"),
+				MS: myTagStruct{"test2"},
+				MM: myTagMap{1, "a"},
+			}},
+			customTagParser: func(tag *ast.TagNode, value any) (any, error) {
+				if tag.Start.Value == "!mytag" {
+					return myTag(value.(string)), nil
+				} else if tag.Start.Value == "!mytagStruct" {
+					return myTagStruct{value.(string)}, nil
+				} else if tag.Start.Value == "!mytagMap" {
 					return myTagMap{
 						X: value.(map[string]any)["x"].(uint64),
 						Y: value.(map[string]any)["y"].(string),
