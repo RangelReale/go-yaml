@@ -2891,26 +2891,70 @@ func TestSameNameInineStruct(t *testing.T) {
 	}
 }
 
+type myTag string
+
+type myTagStruct struct {
+	Value string
+}
+
+type myTagMap struct {
+	X uint64
+	Y string
+}
+
 func TestDecoder_CustomTags(t *testing.T) {
 	tests := []struct {
-		name   string
-		source string
-		value  any
-		err    error
+		name            string
+		source          string
+		value           any
+		customTagParser yaml.CustomTagParser
+		err             error
 	}{
 		{
-			name:   "custom string type",
-			source: "v: !!mytag test",
-			value:  map[string]interface{}{"v": "test"},
+			name:   "custom scalar string type",
+			source: "v: !mytag test",
+			value:  map[string]interface{}{"v": myTag("test")},
+			customTagParser: func(tag *ast.TagNode, value any) (any, error) {
+				if tag.Start.Value == "!mytag" {
+					return myTag(value.(string)), nil
+				}
+				return value, nil
+			},
+		},
+		{
+			name:   "custom scalar struct type",
+			source: "v: !mytag test",
+			value:  map[string]interface{}{"v": myTagStruct{"test"}},
+			customTagParser: func(tag *ast.TagNode, value any) (any, error) {
+				if tag.Start.Value == "!mytag" {
+					return myTagStruct{value.(string)}, nil
+				}
+				return nil, nil
+			},
+		},
+		{
+			name: "custom map yaml to type",
+			source: `v: 
+  !mytag
+  x: 1
+  y: "a"`,
+			value: map[string]interface{}{"v": myTagMap{1, "a"}},
+			customTagParser: func(tag *ast.TagNode, value any) (any, error) {
+				if tag.Start.Value == "!mytag" {
+					return myTagMap{
+						X: value.(map[string]any)["x"].(uint64),
+						Y: value.(map[string]any)["y"].(string),
+					}, nil
+				}
+				return value, nil
+			},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			buf := bytes.NewBufferString(test.source)
-			dec := yaml.NewDecoder(buf, yaml.WithCustomTagParser(func(tag *ast.TagNode, value any) (any, error) {
-				return "10", nil
-			}))
+			dec := yaml.NewDecoder(buf, yaml.WithCustomTagParser(test.customTagParser))
 			typ := reflect.ValueOf(test.value).Type()
 			value := reflect.New(typ)
 			if err := dec.Decode(value.Interface()); err != nil {
