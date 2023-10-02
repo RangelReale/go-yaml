@@ -299,8 +299,10 @@ func (d *Decoder) nodeToValue(node ast.Node) interface{} {
 			return d.nodeToValue(n.Value)
 		default:
 			if d.customTagParser != nil {
-				v, _ := d.customTagParser(n, d.nodeToValue(n.Value))
-				return v
+				v, err := d.customTagParser(n, d.nodeToValue(n.Value))
+				if err == nil {
+					return v
+				}
 			}
 		}
 	case *ast.AnchorNode:
