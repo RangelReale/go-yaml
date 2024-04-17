@@ -58,6 +58,12 @@ type InterfaceUnmarshalerContext interface {
 	UnmarshalYAML(context.Context, func(interface{}) error) error
 }
 
+// AstUnmarshaler interface use InterfaceUnmarshaler with yaml AST node and context.Context.
+// useful for reading meta information about source node in yaml file that being unmarshalled (like file, line, column, etc..)
+type AstUnmarshaler interface {
+	UnmarshalYAML(context.Context, ast.Node, func(interface{}) error) error
+}
+
 // MapItem is an item in a MapSlice.
 type MapItem struct {
 	Key, Value interface{}

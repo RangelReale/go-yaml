@@ -680,6 +680,8 @@ func (d *Decoder) canDecodeByUnmarshaler(dst reflect.Value) bool {
 		return true
 	case InterfaceUnmarshaler:
 		return true
+	case AstUnmarshaler:
+		return true
 	case *time.Time:
 		return true
 	case *time.Duration:
@@ -746,6 +748,22 @@ func (d *Decoder) decodeByUnmarshaler(ctx context.Context, dst reflect.Value, sr
 
 	if unmarshaler, ok := iface.(InterfaceUnmarshaler); ok {
 		if err := unmarshaler.UnmarshalYAML(func(v interface{}) error {
+			rv := reflect.ValueOf(v)
+			if rv.Type().Kind() != reflect.Ptr {
+				return errors.ErrDecodeRequiredPointerType
+			}
+			if err := d.decodeValue(ctx, rv.Elem(), src); err != nil {
+				return errors.Wrapf(err, "failed to decode value")
+			}
+			return nil
+		}); err != nil {
+			return errors.Wrapf(err, "failed to UnmarshalYAML")
+		}
+		return nil
+	}
+
+	if unmarshaler, ok := iface.(AstUnmarshaler); ok {
+		if err := unmarshaler.UnmarshalYAML(ctx, src, func(v interface{}) error {
 			rv := reflect.ValueOf(v)
 			if rv.Type().Kind() != reflect.Ptr {
 				return errors.ErrDecodeRequiredPointerType
